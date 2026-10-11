@@ -1,0 +1,5 @@
+Source	Example endpoint
+Greenhouse	https://boards-api.greenhouse.io/v1/boards/{slug}/jobs?content=true
+Lever	https://api.lever.co/v0/postings/{slug}?mode=json
+Ashby	https://api.ashbyhq.com/posting-api/job-board/{slug}?includeCompensation=true
+Adzuna	https://api.adzuna.com/v1/api/jobs/{country}/search/{page}?...

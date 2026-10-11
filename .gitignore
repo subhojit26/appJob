@@ -1,0 +1,49 @@
+HELP.md
+target/
+.mvn/wrapper/maven-wrapper.jar
+!**/src/main/**/target/
+!**/src/test/**/target/
+
+### STS ###
+.apt_generated
+.classpath
+.factorypath
+.project
+.settings
+.springBeans
+.sts4-cache
+
+### IntelliJ IDEA ###
+.idea
+*.iws
+*.iml
+*.ipr
+
+### NetBeans ###
+/nbproject/private/
+/nbbuild/
+/dist/
+/nbdist/
+/.nb-gradle/
+build/
+!**/src/main/**/build/
+!**/src/test/**/build/
+
+### VS Code ###
+.vscode/
+
+### Local secrets / environment ###
+# Never commit real credentials (e.g. Adzuna keys, SMTP passwords).
+.env
+.env.*
+*.env
+application-local.properties
+application-secrets.properties
+src/main/resources/application-local.properties
+
+### Local SQLite database files ###
+*.db
+*.db-wal
+*.db-shm
+jobwatch.db*
+

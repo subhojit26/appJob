@@ -1,0 +1,194 @@
+spring:
+  application:
+    name: appJob
+  main:
+    web-application-type: none
+  threads:
+    virtual:
+      enabled: true
+
+  # --- SQLite (PRD 6.4) ---
+  datasource:
+    url: jdbc:sqlite:${JOBWATCH_DB:jobwatch.db}
+    driver-class-name: org.sqlite.JDBC
+    hikari:
+      maximum-pool-size: 1
+      connection-init-sql: "PRAGMA journal_mode=WAL"
+  sql:
+    init:
+      mode: always
+      schema-locations: classpath:schema.sql
+
+  # --- Mail (PRD 4.5) ---
+  mail:
+    host: ${SPRING_MAIL_HOST:smtp.gmail.com}
+    port: ${SPRING_MAIL_PORT:587}
+    username: ${JOBWATCH_EMAIL_FROM:}
+    password: ${SPRING_MAIL_PASSWORD:}
+    properties:
+      mail:
+        smtp:
+          auth: true
+          starttls:
+            enable: true
+
+  # --- Thymeleaf ---
+  thymeleaf:
+    prefix: classpath:/templates/
+    suffix: .html
+    check-template-location: false
+
+# --- Adzuna credentials (env vars only — never hard-code) ---
+adzuna:
+  app-id: ${ADZUNA_APP_ID:}
+  app-key: ${ADZUNA_APP_KEY:}
+
+# ═══════════════════════════════════════════════════════════
+# JobWatch application configuration
+# ═══════════════════════════════════════════════════════════
+jobwatch:
+
+  # ── freshness window (days) ──────────────────────────────
+  # Only jobs posted/first-seen within this many days are emailed or shown on the dashboard.
+  freshness-days: ${JOBWATCH_FRESHNESS_DAYS:3}
+
+  # ── profile match threshold ──────────────────────────────
+  # Minimum similarity score a job must reach to be shown/emailed for an active profile.
+  match-min-score: ${JOBWATCH_MATCH_MIN_SCORE:5}
+
+  # ── email ────────────────────────────────────────────────
+  email:
+    from: ${JOBWATCH_EMAIL_FROM:}
+    to:   ${JOBWATCH_EMAIL_TO:}
+
+  # ── healthcheck (PRD FR-31) ──────────────────────────────
+  healthcheck:
+    url: ${HEALTHCHECK_URL:}
+
+  # ── scheduler ────────────────────────────────────────────
+  schedule:
+    cron: "${JOBWATCH_CRON:0 */30 * * * *}"
+
+  # ── digest ────────────────────────────────────────────────
+  digest:
+    max-jobs: 50
+
+  # ── global eligibility filters (PRD 7.3) ─────────────────
+  filters:
+    locations:
+      - india
+      - bengaluru
+      - pune
+      - hyderabad
+      - remote
+    allow-remote-worldwide: true
+    exp-min: 0
+    exp-max: 6
+    blocked-companies:
+      - staffing
+      - recruitment
+      - consultancy
+    blocked-title-words:
+      - intern
+      - trainee
+      - manager
+      - director
+      - sales
+
+  # ── role profiles (PRD 7.4) ───────────────────────────────
+  # -- role profiles (PRD 7.4) - USER PREFERENCES ----------------------------
+  # Profiles define WHAT you want. You do NOT enumerate companies here.
+  # company-types: preferred categories (informational; drives future discovery)
+  # locations: per-profile override; empty = use global filters.locations
+  profiles:
+    - name: backend-java
+      include-title:
+        - java
+        - spring
+        - backend
+        - back-end
+      stack:
+        - java
+        - spring boot
+        - kafka
+        - microservices
+        - aws
+        - postgresql
+      exclude-title:
+        - javascript
+      company-types:
+        - product
+        - fintech
+        - saas
+    - name: golang
+      include-title:
+        - golang
+        - go developer
+        - go engineer
+        - go backend
+      stack:
+        - go
+        - golang
+        - grpc
+        - kubernetes
+      company-types:
+        - product
+        - infrastructure
+    - name: frontend-react
+      include-title:
+        - react
+        - frontend
+        - front-end
+      stack:
+        - react
+        - typescript
+        - redux
+        - next.js
+      company-types:
+        - product
+        - saas
+    - name: fullstack
+      include-title:
+        - full stack
+        - fullstack
+        - full-stack
+      stack:
+        - react
+        - java
+        - node
+        - typescript
+      company-types:
+        - product
+        - startup
+  # ── sources ───────────────────────────────────────────────
+  # NOTE (Phase 6 / FR-1a): company slugs are NO LONGER listed here. The ATS roster
+  # (Greenhouse/Lever/Ashby) is discovered dynamically and stored in the DB `companies`
+  # table. Config holds only enable flags and the preference-driven Adzuna queries.
+  sources:
+
+    greenhouse:
+      enabled: true
+
+    lever:
+      enabled: true
+
+    ashby:
+      enabled: true
+
+    adzuna:
+      enabled: true
+      country: in
+      results-per-page: 50
+      max-days-old: 2
+      queries:
+        - java developer
+        - golang developer
+        - react developer
+
+  # ── company discovery (Phase 6 / FR-1b) ───────────────────
+  discovery:
+    enabled: true
+    harvest-from-adzuna: true
+    prune-after-404: 3
+    max-probes-per-run: 60
+

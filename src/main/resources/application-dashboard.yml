@@ -1,0 +1,17 @@
+# Dashboard run profile (Phase 9). Activate with: --spring.profiles.active=dashboard
+# Turns the otherwise-headless app into a local, loopback-only web server.
+spring:
+  main:
+    web-application-type: servlet
+  thymeleaf:
+    # Dashboard templates live under templates/dashboard/; email templates stay at the root.
+    cache: false
+
+server:
+  address: 127.0.0.1   # loopback only — never exposed publicly (FR-41)
+  port: 8080
+
+jobwatch:
+  dashboard:
+    enabled: true
+
