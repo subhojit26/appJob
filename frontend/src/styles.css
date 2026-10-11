@@ -1,0 +1,124 @@
+/* ───────── Global look & feel ───────── */
+:root {
+  --jw-gradient: linear-gradient(135deg, #6355f5 0%, #8b5cf6 55%, #d946ef 100%);
+  --jw-gradient-soft: linear-gradient(135deg, rgba(99, 85, 245, 0.12), rgba(217, 70, 239, 0.10));
+  --jw-surface: #ffffff;
+  --jw-bg: #f5f6fb;
+  --jw-border: #e8eaf2;
+  --jw-ring: rgba(99, 85, 245, 0.25);
+}
+
+[data-mantine-color-scheme='dark'] {
+  --jw-surface: #1a1b26;
+  --jw-bg: #11121a;
+  --jw-border: #2a2c3a;
+  --jw-gradient-soft: linear-gradient(135deg, rgba(99, 85, 245, 0.22), rgba(217, 70, 239, 0.14));
+}
+
+html, body { background: var(--jw-bg); -webkit-font-smoothing: antialiased; }
+
+/* soft aurora behind content */
+.jw-main {
+  position: relative;
+  min-height: 100vh;
+  background:
+    radial-gradient(900px 400px at 85% -80px, rgba(139, 92, 246, 0.14), transparent 60%),
+    radial-gradient(700px 360px at -5% 0%, rgba(99, 85, 245, 0.10), transparent 60%),
+    var(--jw-bg);
+}
+
+/* ───────── Surfaces ───────── */
+.jw-card {
+  background: var(--jw-surface);
+  border-color: var(--jw-border) !important;
+  box-shadow: var(--mantine-shadow-xs);
+  transition: transform 0.18s ease, box-shadow 0.18s ease, border-color 0.18s ease;
+}
+.jw-card-hover:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--mantine-shadow-md);
+  border-color: var(--mantine-color-brand-3) !important;
+}
+
+/* ───────── Brand bits ───────── */
+.jw-logo {
+  width: 36px; height: 36px; border-radius: 11px;
+  background: var(--jw-gradient);
+  display: grid; place-items: center; color: #fff;
+  box-shadow: 0 6px 16px -4px rgba(99, 85, 245, 0.55);
+}
+.jw-gradient-text {
+  background: var(--jw-gradient);
+  -webkit-background-clip: text; background-clip: text;
+  -webkit-text-fill-color: transparent; color: transparent;
+}
+.jw-hero {
+  position: relative; overflow: hidden; border: none !important;
+  background: var(--jw-gradient); color: #fff;
+  box-shadow: 0 18px 40px -16px rgba(99, 85, 245, 0.6);
+}
+.jw-hero::after {
+  content: ''; position: absolute; right: -60px; top: -60px; width: 220px; height: 220px;
+  border-radius: 50%; background: rgba(255, 255, 255, 0.12);
+}
+.jw-hero::before {
+  content: ''; position: absolute; right: 80px; bottom: -90px; width: 180px; height: 180px;
+  border-radius: 50%; background: rgba(255, 255, 255, 0.08);
+}
+
+/* ───────── Nav ───────── */
+.jw-nav-link {
+  border-radius: 10px; font-weight: 600; margin-bottom: 4px;
+}
+.jw-nav-link[data-active] {
+  background: var(--jw-gradient) !important; color: #fff !important;
+  box-shadow: 0 8px 18px -8px rgba(99, 85, 245, 0.7);
+}
+.jw-nav-link[data-active] .mantine-NavLink-label,
+.jw-nav-link[data-active] .mantine-NavLink-description,
+.jw-nav-link[data-active] svg { color: #fff !important; }
+.jw-nav-link[data-active] .mantine-NavLink-description { opacity: 0.85; }
+
+/* ───────── Job card ───────── */
+.jw-job { position: relative; }
+.jw-job::before {
+  content: ''; position: absolute; left: 0; top: 14px; bottom: 14px; width: 3px;
+  border-radius: 3px; background: transparent; transition: background 0.18s ease;
+}
+.jw-job:hover::before { background: var(--jw-gradient); }
+.jw-job-title { color: inherit; text-decoration: none; font-weight: 700; }
+.jw-job-title:hover { color: var(--mantine-color-brand-6); }
+
+/* ───────── Facet buttons ───────── */
+.jw-facet {
+  display: flex; align-items: center; justify-content: space-between; gap: 8px;
+  width: 100%; padding: 7px 10px; border-radius: 9px; font-size: 13.5px;
+  color: var(--mantine-color-text); transition: background 0.15s ease;
+}
+.jw-facet:hover { background: var(--mantine-color-default-hover); }
+.jw-facet[data-active] {
+  background: var(--jw-gradient-soft); color: var(--mantine-color-brand-7); font-weight: 700;
+}
+[data-mantine-color-scheme='dark'] .jw-facet[data-active] { color: var(--mantine-color-brand-3); }
+.jw-facet-count {
+  font-size: 11.5px; font-weight: 600; padding: 1px 8px; border-radius: 99px;
+  background: var(--mantine-color-default-hover); color: var(--mantine-color-dimmed);
+}
+
+/* ───────── Entrance animation ───────── */
+@keyframes jw-fade-up { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: none; } }
+.jw-fade-up { animation: jw-fade-up 0.4s ease both; }
+.jw-stagger > * { animation: jw-fade-up 0.4s ease both; }
+.jw-stagger > *:nth-child(2) { animation-delay: 0.04s; }
+.jw-stagger > *:nth-child(3) { animation-delay: 0.08s; }
+.jw-stagger > *:nth-child(4) { animation-delay: 0.12s; }
+.jw-stagger > *:nth-child(5) { animation-delay: 0.16s; }
+.jw-stagger > *:nth-child(6) { animation-delay: 0.20s; }
+
+@media (prefers-reduced-motion: reduce) {
+  .jw-fade-up, .jw-stagger > * { animation: none; }
+  .jw-card, .jw-card-hover:hover { transition: none; transform: none; }
+}
+
+/* scrollbar polish */
+* { scrollbar-width: thin; scrollbar-color: var(--jw-border) transparent; }
