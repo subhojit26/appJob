@@ -40,6 +40,7 @@ build/
 application-local.properties
 application-secrets.properties
 src/main/resources/application-local.properties
+backend/src/main/resources/application-local.properties
 
 ### Local SQLite database files ###
 *.db
