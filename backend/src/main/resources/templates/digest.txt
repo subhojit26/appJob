@@ -1,0 +1,24 @@
+JobWatch Job Digest
+===================
+
+[[${healthLine}]]
+
+---
+
+[# th:each="job : ${jobs}"]
+[[${job.title}]] at [[${job.company}]]
+[# th:if="${job.location != null}" th:text="'Location: ' + ${job.location}" /]
+[# th:if="${job.remote}" th:text="'Remote'" /]
+[# th:if="${job.minExperienceYears != null}" th:text="'Experience: ' + ${job.minExperienceYears} + '+ years'" /]
+[# th:if="${job.salaryMin != null}" th:text="'Salary: ' + ${job.salaryMin} + ' ' + (${job.salaryCurrency} ?: '')" /]
+[# th:if="${job.employmentType != null}" th:text="'Type: ' + ${job.employmentType}" /]
+[# th:if="${job.stack != null and !job.stack.isEmpty()}" th:text="'Stack: ' + ${#strings.listJoin(job.stack, ', ')}" /]
+Apply: [[${job.applyUrl}]]
+Source: [[${job.source}]]
+
+---
+
+[/]
+[# th:if="${isCapped}" th:text="'More jobs available: top 50 shown; ' + (${totalJobs} - 50) + ' more matched.'" /]
+JobWatch • https://github.com/yourusername/jobwatch
+

@@ -1,0 +1,48 @@
+# JobWatch company-discovery seed (Phase 6 / FR-1b).
+# This is an INTERNAL probing aid, NOT user configuration. The authoritative roster lives
+# in the DB `companies` table; these candidates are probed against Greenhouse/Lever/Ashby and
+# only live boards are persisted. Adzuna-harvested company names are probed in addition to these.
+# One candidate slug per line. Lines starting with '#' and blank lines are ignored.
+
+# --- migrated from the former application.yml hardcoded lists ---
+stripe
+airbnb
+entrata
+openai
+llamaindex
+
+# --- additional well-known product/tech companies to bootstrap coverage ---
+figma
+notion
+ramp
+databricks
+razorpay
+postman
+zomato
+swiggy
+cred
+groww
+browserstack
+hasura
+atlassian
+gitlab
+elastic
+mongodb
+confluent
+snowflake
+datadog
+cloudflare
+coinbase
+robinhood
+doordash
+instacart
+reddit
+discord
+twilio
+segment
+plaid
+brex
+retool
+vercel
+linear
+
