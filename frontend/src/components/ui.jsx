@@ -61,12 +61,13 @@ const AVATAR_COLORS = ['brand', 'grape', 'teal', 'orange', 'cyan', 'pink', 'lime
 
 /** Deterministic colored initial for a company, so each employer is recognizable. */
 export function CompanyAvatar({ name = '?', size = 44 }) {
+  const text = typeof name === 'string' ? name : String(name ?? '?');
   let h = 0;
-  for (let i = 0; i < name.length; i++) h = (h * 31 + name.charCodeAt(i)) >>> 0;
+  for (let i = 0; i < text.length; i++) h = (h * 31 + text.charCodeAt(i)) >>> 0;
   const color = AVATAR_COLORS[h % AVATAR_COLORS.length];
   return (
     <ThemeIcon size={size} radius="lg" variant="light" color={color}>
-      <Text fw={800} fz={size * 0.42}>{name.trim().charAt(0).toUpperCase() || '?'}</Text>
+      <Text fw={800} fz={size * 0.42}>{text.trim().charAt(0).toUpperCase() || '?'}</Text>
     </ThemeIcon>
   );
 }

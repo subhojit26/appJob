@@ -106,12 +106,16 @@ export default function ProfilesPage() {
   const [data, setData] = useState(null);
   const [busy, setBusy] = useState(false);
 
-  const load = () => getProfiles().then(setData).catch(() =>
-    notifications.show({ color: 'red', message: 'Failed to load profiles' }));
+  const load = () => getProfiles().then(setData).catch(() => {
+    setData({ profiles: [], activeIds: [] });
+    notifications.show({ color: 'red', message: 'Failed to load profiles' });
+  });
 
   useEffect(() => { load(); }, []);
 
-  const isActive = (id) => data?.activeIds?.includes(id);
+  const profiles = Array.isArray(data?.profiles) ? data.profiles : [];
+  const activeIds = Array.isArray(data?.activeIds) ? data.activeIds : [];
+  const isActive = (id) => activeIds.includes(id);
 
   const onToggle = async (id) => {
     setBusy(true);
@@ -138,8 +142,8 @@ export default function ProfilesPage() {
 
   if (!data) return <PageLoader />;
 
-  const total = data.profiles.length;
-  const activeCount = data.profiles.filter((p) => isActive(p.id)).length;
+  const total = profiles.length;
+  const activeCount = profiles.filter((p) => isActive(p.id)).length;
 
   return (
     <Stack gap={0}>
@@ -193,7 +197,7 @@ export default function ProfilesPage() {
         </Card>
       ) : (
         <SimpleGrid cols={{ base: 1, sm: 2, lg: 3 }} spacing="lg" className="jw-stagger">
-          {data.profiles.map((p) => (
+          {profiles.map((p) => (
             <ProfileCard
               key={p.id}
               p={p}
