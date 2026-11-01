@@ -4,7 +4,10 @@ import axios from 'axios';
  * Thin API client for the JobWatch REST endpoints. In dev, Vite proxies `/api`
  * to the Spring Boot app; in prod the SPA is served from the same origin.
  */
-const http = axios.create({ baseURL: '/api' });
+const envBase = (import.meta.env.VITE_API_BASE_URL || '').trim();
+const normalizedBase = envBase.replace(/\/$/, '');
+const apiBase = normalizedBase ? `${normalizedBase}/api` : '/api';
+const http = axios.create({ baseURL: apiBase });
 
 // ── Profiles ────────────────────────────────────────────────────────────────
 export const getProfiles = () => http.get('/profiles').then((r) => r.data);
