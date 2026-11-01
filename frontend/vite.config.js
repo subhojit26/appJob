@@ -12,7 +12,8 @@ export default defineConfig({
     },
   },
   build: {
-    outDir: '../src/main/resources/static',
+    // Vercel expects a local output folder it can publish directly.
+    outDir: process.env.VERCEL ? 'dist' : '../src/main/resources/static',
     emptyOutDir: true,
   },
 });

@@ -1,39 +1,127 @@
 import { useEffect, useState, useCallback } from 'react';
 import {
-  Grid, Card, Title, Text, Stack, Group, Table, Badge, Button, Anchor, Loader, Center,
-  Pill, UnstyledButton, Box,
+  Grid, Card, Text, Stack, Group, Badge, Button, Pill, Box, UnstyledButton, Anchor,
+  Skeleton, Tooltip, Collapse,
 } from '@mantine/core';
-import { IconMapPin, IconWorld, IconCircleCheck, IconExternalLink, IconX } from '@tabler/icons-react';
+import { useDisclosure } from '@mantine/hooks';
+import {
+  IconMapPin, IconWorld, IconCircleCheck, IconExternalLink, IconX, IconBriefcase2,
+  IconCalendar, IconFilterOff, IconCircleDashed, IconTargetArrow, IconAdjustmentsHorizontal,
+} from '@tabler/icons-react';
 import { useSearchParams } from 'react-router-dom';
 import { getJobs, setApplied } from '../api.js';
+import { PageHeader, EmptyState, CompanyAvatar } from '../components/ui.jsx';
 
-function FacetGroup({ title, items, activeLabel, onPick }) {
-  if (!items || items.length === 0) return null;
+/** One clickable filter row with a count pill. */
+function Facet({ label, count, active, onClick }) {
   return (
-    <Box mb="md">
-      <Text size="xs" tt="uppercase" fw={600} c="dimmed" mb={6}>{title}</Text>
-      <Stack gap={2}>
-        {items.map((f) => {
-          const sel = activeLabel === f.label;
-          return (
-            <UnstyledButton
-              key={f.label}
-              onClick={() => onPick(sel ? null : f.label)}
-              style={{
-                display: 'flex', justifyContent: 'space-between', padding: '4px 8px',
-                borderRadius: 6, fontSize: 13,
-                background: sel ? 'var(--mantine-color-indigo-0)' : undefined,
-                color: sel ? 'var(--mantine-color-indigo-7)' : 'var(--mantine-color-gray-7)',
-                fontWeight: sel ? 600 : 400,
-              }}
-            >
-              <span>{f.label}</span>
-              <span style={{ color: 'var(--mantine-color-gray-5)' }}>{f.count}</span>
-            </UnstyledButton>
-          );
-        })}
-      </Stack>
+    <UnstyledButton className="jw-facet" data-active={active || undefined} onClick={onClick}>
+      <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{label}</span>
+      {count != null && <span className="jw-facet-count">{count}</span>}
+    </UnstyledButton>
+  );
+}
+
+function FacetSection({ title, children }) {
+  return (
+    <Box>
+      <Text size="xs" tt="uppercase" fw={700} c="dimmed" mb={6} px={10} lts={0.6}>{title}</Text>
+      <Stack gap={2}>{children}</Stack>
     </Box>
+  );
+}
+
+function formatDate(iso) {
+  if (!iso) return null;
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return iso.slice(0, 10);
+  return d.toLocaleDateString(undefined, { day: 'numeric', month: 'short', year: 'numeric' });
+}
+
+function JobCard({ job, onApplied }) {
+  const posted = formatDate(job.postedAt);
+  return (
+    <Card className="jw-card-hover jw-job" padding="md">
+      <Group wrap="nowrap" align="flex-start" gap="md">
+        <CompanyAvatar name={job.company} />
+        <Box style={{ flex: 1, minWidth: 0 }}>
+          <Group justify="space-between" align="flex-start" wrap="nowrap" gap="sm">
+            <Box style={{ minWidth: 0 }}>
+              <Anchor
+                href={job.applyUrl} target="_blank" rel="noopener noreferrer"
+                className="jw-job-title" fz="md" lh={1.3}
+              >
+                {job.title}
+                <IconExternalLink size={14} style={{ marginLeft: 6, verticalAlign: -2, opacity: 0.6 }} />
+              </Anchor>
+              <Text size="sm" c="dimmed" fw={500} mt={2}>{job.company}</Text>
+            </Box>
+            <Tooltip label="Match score against your profile">
+              <Badge
+                variant="gradient" gradient={{ from: 'brand.6', to: 'grape.5', deg: 135 }}
+                size="lg" leftSection={<IconTargetArrow size={13} />}
+                style={{ flexShrink: 0, overflow: 'visible' }}
+                styles={{ label: { overflow: 'visible' } }}
+              >
+                {job.score}
+              </Badge>
+            </Tooltip>
+          </Group>
+
+          <Group gap="md" mt="sm" wrap="wrap">
+            {job.location && (
+              <Group gap={5} wrap="nowrap">
+                <IconMapPin size={15} color="var(--mantine-color-dimmed)" />
+                <Text size="sm" c="dimmed">{job.location}</Text>
+              </Group>
+            )}
+            {posted && (
+              <Group gap={5} wrap="nowrap">
+                <IconCalendar size={15} color="var(--mantine-color-dimmed)" />
+                <Text size="sm" c="dimmed">{posted}</Text>
+              </Group>
+            )}
+          </Group>
+
+          <Group justify="space-between" mt="md" wrap="wrap" gap="xs">
+            <Group gap={6}>
+              {job.remote && (
+                <Badge color="teal" variant="light" leftSection={<IconWorld size={12} />}>Remote</Badge>
+              )}
+              {job.profile && <Badge variant="light" color="brand" tt="none">{job.profile}</Badge>}
+            </Group>
+            <Button
+              size="xs"
+              variant={job.applied ? 'light' : 'default'}
+              color={job.applied ? 'teal' : 'gray'}
+              leftSection={job.applied ? <IconCircleCheck size={15} /> : <IconCircleDashed size={15} />}
+              onClick={() => onApplied(job)}
+            >
+              {job.applied ? 'Applied' : 'Mark applied'}
+            </Button>
+          </Group>
+        </Box>
+      </Group>
+    </Card>
+  );
+}
+
+function JobSkeletons() {
+  return (
+    <Stack gap="md">
+      {[0, 1, 2, 3].map((i) => (
+        <Card key={i} padding="md">
+          <Group wrap="nowrap" gap="md">
+            <Skeleton h={44} w={44} radius="lg" />
+            <Stack gap={8} style={{ flex: 1 }}>
+              <Skeleton h={14} w="55%" />
+              <Skeleton h={12} w="30%" />
+              <Skeleton h={12} w="70%" mt={6} />
+            </Stack>
+          </Group>
+        </Card>
+      ))}
+    </Stack>
   );
 }
 
@@ -41,6 +129,7 @@ export default function JobsPage() {
   const [sp, setSp] = useSearchParams();
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [filtersOpen, { toggle: toggleFilters }] = useDisclosure(false);
 
   const params = {
     location: sp.get('location') || undefined,
@@ -78,128 +167,133 @@ export default function JobsPage() {
   };
 
   const chips = [];
-  if (f.location) chips.push(['location', `location: ${f.location}`]);
-  if (f.remote != null) chips.push(['remote', f.remote ? 'remote' : 'on-site']);
-  if (f.profile) chips.push(['profile', `profile: ${f.profile}`]);
-  if (f.applied != null) chips.push(['applied', f.applied ? 'applied' : 'not applied']);
+  if (f.location) chips.push(['location', `Location: ${f.location}`]);
+  if (f.remote != null) chips.push(['remote', f.remote ? 'Remote' : 'On-site']);
+  if (f.profile) chips.push(['profile', `Profile: ${f.profile}`]);
+  if (f.applied != null) chips.push(['applied', f.applied ? 'Applied' : 'Not applied']);
+
+  const jobs = data?.jobs ?? [];
+
+  const filtersPanel = (
+  <Card padding="md">
+            <Group gap={8} mb="md" px={10}>
+              <IconAdjustmentsHorizontal size={18} color="var(--mantine-color-brand-6)" />
+              <Text fw={700}>Filters</Text>
+            </Group>
+            <Stack gap="lg">
+              <FacetSection title="Work type">
+                <Facet
+                  label="Remote" count={remoteCount('Remote')} active={f.remote === true}
+                  onClick={() => update('remote', f.remote === true ? null : 'true')}
+                />
+                <Facet
+                  label="On-site" count={remoteCount('On-site')} active={f.remote === false}
+                  onClick={() => update('remote', f.remote === false ? null : 'false')}
+                />
+              </FacetSection>
+
+              {data?.profileFacet?.length > 0 && (
+                <FacetSection title="Profile">
+                  {data.profileFacet.map((x) => (
+                    <Facet
+                      key={x.label} label={x.label} count={x.count} active={f.profile === x.label}
+                      onClick={() => update('profile', f.profile === x.label ? null : x.label)}
+                    />
+                  ))}
+                </FacetSection>
+              )}
+
+              {data?.locationFacet?.length > 0 && (
+                <FacetSection title="Location">
+                  {data.locationFacet.map((x) => (
+                    <Facet
+                      key={x.label} label={x.label} count={x.count} active={f.location === x.label}
+                      onClick={() => update('location', f.location === x.label ? null : x.label)}
+                    />
+                  ))}
+                </FacetSection>
+              )}
+
+              <FacetSection title="Status">
+                <Facet
+                  label="Applied" active={f.applied === true}
+                  onClick={() => update('applied', f.applied === true ? null : 'true')}
+                />
+                <Facet
+                  label="Not applied" active={f.applied === false}
+                  onClick={() => update('applied', f.applied === false ? null : 'false')}
+                />
+              </FacetSection>
+            </Stack>
+          </Card>
+  );
 
   return (
-    <Grid gutter="lg">
-      <Grid.Col span={{ base: 12, sm: 3 }}>
-        <Card withBorder shadow="sm" radius="md" padding="md">
-          <Box mb="md">
-            <Text size="xs" tt="uppercase" fw={600} c="dimmed" mb={6}>Remote</Text>
-            <Stack gap={2}>
-              <UnstyledButton
-                onClick={() => update('remote', f.remote === true ? null : 'true')}
-                style={{ display: 'flex', justifyContent: 'space-between', padding: '4px 8px', borderRadius: 6, fontSize: 13, fontWeight: f.remote === true ? 600 : 400, background: f.remote === true ? 'var(--mantine-color-indigo-0)' : undefined }}
-              >
-                <span>Remote</span><span style={{ color: '#9ca3af' }}>{remoteCount('Remote')}</span>
-              </UnstyledButton>
-              <UnstyledButton
-                onClick={() => update('remote', f.remote === false ? null : 'false')}
-                style={{ display: 'flex', justifyContent: 'space-between', padding: '4px 8px', borderRadius: 6, fontSize: 13, fontWeight: f.remote === false ? 600 : 400, background: f.remote === false ? 'var(--mantine-color-indigo-0)' : undefined }}
-              >
-                <span>On-site</span><span style={{ color: '#9ca3af' }}>{remoteCount('On-site')}</span>
-              </UnstyledButton>
-            </Stack>
-          </Box>
-          <FacetGroup title="Profile" items={data?.profileFacet} activeLabel={f.profile} onPick={(v) => update('profile', v)} />
-          <FacetGroup title="Location" items={data?.locationFacet} activeLabel={f.location} onPick={(v) => update('location', v)} />
-          <Box>
-            <Text size="xs" tt="uppercase" fw={600} c="dimmed" mb={6}>Applied</Text>
-            <Stack gap={2}>
-              <UnstyledButton onClick={() => update('applied', f.applied === true ? null : 'true')}
-                style={{ padding: '4px 8px', borderRadius: 6, fontSize: 13, fontWeight: f.applied === true ? 600 : 400, background: f.applied === true ? 'var(--mantine-color-indigo-0)' : undefined }}>
-                Applied
-              </UnstyledButton>
-              <UnstyledButton onClick={() => update('applied', f.applied === false ? null : 'false')}
-                style={{ padding: '4px 8px', borderRadius: 6, fontSize: 13, fontWeight: f.applied === false ? 600 : 400, background: f.applied === false ? 'var(--mantine-color-indigo-0)' : undefined }}>
-                Not applied
-              </UnstyledButton>
-            </Stack>
-          </Box>
-        </Card>
-      </Grid.Col>
+    <Stack gap={0}>
+      <PageHeader
+        icon={IconBriefcase2}
+        title="Jobs"
+        subtitle="Fresh openings matched to your active profiles. Narrow them down with the filters and track what you’ve applied to."
+      />
 
-      <Grid.Col span={{ base: 12, sm: 9 }}>
-        <Group justify="space-between" mb="sm">
-          <Group gap="xs">
-            <Title order={3}>{data?.total ?? 0}</Title>
-            <Text c="dimmed">jobs</Text>
-            {chips.map(([key, label]) => (
-              <Pill key={key} withRemoveButton onRemove={() => update(key, null)}>{label}</Pill>
-            ))}
+      <Grid gutter="lg">
+        <Grid.Col span={{ base: 12, md: 3 }}>
+          <Box visibleFrom="md" style={{ position: 'sticky', top: 80 }}>{filtersPanel}</Box>
+          <Box hiddenFrom="md">
+            <Button
+              fullWidth variant="default" size="md"
+              leftSection={<IconAdjustmentsHorizontal size={18} />}
+              rightSection={chips.length > 0 ? <Badge size="sm" circle>{chips.length}</Badge> : null}
+              onClick={toggleFilters}
+            >
+              {filtersOpen ? 'Hide filters' : 'Show filters'}
+            </Button>
+            <Collapse in={filtersOpen}><Box mt="sm">{filtersPanel}</Box></Collapse>
+          </Box>
+        </Grid.Col>
+
+        <Grid.Col span={{ base: 12, md: 9 }}>
+          <Group justify="space-between" mb="md" wrap="wrap" gap="xs">
+            <Group gap="xs">
+              <Text fw={800} fz={22}>{data?.total ?? 0}</Text>
+              <Text c="dimmed" fw={500}>{data?.total === 1 ? 'job' : 'jobs'}</Text>
+              {chips.map(([key, label]) => (
+                <Pill
+                  key={key} withRemoveButton size="md"
+                  onRemove={() => update(key, null)}
+                  style={{ background: 'var(--mantine-color-brand-light)', color: 'var(--mantine-color-brand-light-color)', fontWeight: 600 }}
+                >
+                  {label}
+                </Pill>
+              ))}
+            </Group>
             {chips.length > 0 && (
-              <Anchor size="sm" onClick={clearAll} c="blue">
-                <Group gap={2}><IconX size={13} /> clear all</Group>
-              </Anchor>
+              <Button variant="subtle" size="xs" leftSection={<IconX size={14} />} onClick={clearAll}>
+                Clear all
+              </Button>
             )}
           </Group>
-        </Group>
 
-        <Card withBorder shadow="sm" radius="md" padding="0">
           {loading ? (
-            <Center h={200}><Loader /></Center>
-          ) : (
-            <Table verticalSpacing="sm" horizontalSpacing="md" highlightOnHover>
-              <Table.Thead>
-                <Table.Tr>
-                  <Table.Th>Title</Table.Th>
-                  <Table.Th>Company</Table.Th>
-                  <Table.Th>Location</Table.Th>
-                  <Table.Th>Remote</Table.Th>
-                  <Table.Th>Profile</Table.Th>
-                  <Table.Th>Score</Table.Th>
-                  <Table.Th>Posted</Table.Th>
-                  <Table.Th>Applied</Table.Th>
-                </Table.Tr>
-              </Table.Thead>
-              <Table.Tbody>
-                {(data?.jobs ?? []).map((j) => (
-                  <Table.Tr key={j.id}>
-                    <Table.Td>
-                      <Anchor href={j.applyUrl} target="_blank" fw={500}>
-                        <Group gap={4} wrap="nowrap">{j.title}<IconExternalLink size={13} /></Group>
-                      </Anchor>
-                    </Table.Td>
-                    <Table.Td>{j.company}</Table.Td>
-                    <Table.Td><Group gap={4}><IconMapPin size={13} color="#9ca3af" />{j.location}</Group></Table.Td>
-                    <Table.Td>
-                      {j.remote
-                        ? <Badge color="green" variant="light" leftSection={<IconWorld size={12} />}>remote</Badge>
-                        : <Text c="dimmed">—</Text>}
-                    </Table.Td>
-                    <Table.Td><Badge variant="light" color="indigo" tt="none">{j.profile}</Badge></Table.Td>
-                    <Table.Td>{j.score}</Table.Td>
-                    <Table.Td>{j.postedAt ? j.postedAt.slice(0, 10) : '—'}</Table.Td>
-                    <Table.Td>
-                      <Button
-                        size="xs"
-                        variant={j.applied ? 'light' : 'default'}
-                        color={j.applied ? 'green' : 'gray'}
-                        leftSection={j.applied ? <IconCircleCheck size={14} /> : null}
-                        onClick={() => onApplied(j)}
-                      >
-                        {j.applied ? 'applied' : 'mark applied'}
-                      </Button>
-                    </Table.Td>
-                  </Table.Tr>
-                ))}
-                {(data?.jobs ?? []).length === 0 && (
-                  <Table.Tr>
-                    <Table.Td colSpan={8}>
-                      <Text c="dimmed" ta="center" py="lg">No jobs match these filters yet.</Text>
-                    </Table.Td>
-                  </Table.Tr>
+            <JobSkeletons />
+          ) : jobs.length === 0 ? (
+            <Card>
+              <EmptyState
+                icon={IconFilterOff}
+                title="No jobs match these filters"
+                message="Try removing a filter, or activate more profiles to widen what we look for."
+                action={chips.length > 0 && (
+                  <Button mt="sm" variant="light" onClick={clearAll}>Clear filters</Button>
                 )}
-              </Table.Tbody>
-            </Table>
+              />
+            </Card>
+          ) : (
+            <Stack gap="md" className="jw-stagger">
+              {jobs.map((j) => <JobCard key={j.id} job={j} onApplied={onApplied} />)}
+            </Stack>
           )}
-        </Card>
-      </Grid.Col>
-    </Grid>
+        </Grid.Col>
+      </Grid>
+    </Stack>
   );
 }
-
-
