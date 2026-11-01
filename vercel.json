@@ -1,0 +1,13 @@
+{
+  "installCommand": "if [ -d frontend ]; then cd frontend; fi; npm ci --include=dev",
+  "buildCommand": "if [ -d frontend ]; then cd frontend; fi; npm run build",
+  "outputDirectory": "frontend/dist",
+  "rewrites": [
+    {
+      "source": "/(.*)",
+      "destination": "/index.html"
+    }
+  ]
+}
+
+
