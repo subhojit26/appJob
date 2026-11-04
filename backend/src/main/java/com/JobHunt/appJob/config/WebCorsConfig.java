@@ -18,9 +18,15 @@ import java.util.Arrays;
 public class WebCorsConfig implements WebMvcConfigurer {
 
     private final String[] allowedOrigins;
+    private final String[] allowedOriginPatterns;
 
-    public WebCorsConfig(@Value("${jobwatch.cors.allowed-origins:}") String allowedOriginsCsv) {
+    public WebCorsConfig(@Value("${jobwatch.cors.allowed-origins:}") String allowedOriginsCsv,
+                         @Value("${jobwatch.cors.allowed-origin-patterns:}") String allowedOriginPatternsCsv) {
         this.allowedOrigins = Arrays.stream(allowedOriginsCsv.split(","))
+                .map(String::trim)
+                .filter(StringUtils::hasText)
+                .toArray(String[]::new);
+        this.allowedOriginPatterns = Arrays.stream(allowedOriginPatternsCsv.split(","))
                 .map(String::trim)
                 .filter(StringUtils::hasText)
                 .toArray(String[]::new);
@@ -28,15 +34,21 @@ public class WebCorsConfig implements WebMvcConfigurer {
 
     @Override
     public void addCorsMappings(CorsRegistry registry) {
-        if (allowedOrigins.length == 0) {
+        if (allowedOrigins.length == 0 && allowedOriginPatterns.length == 0) {
             return;
         }
 
-        registry.addMapping("/api/**")
-                .allowedOrigins(allowedOrigins)
+        var mapping = registry.addMapping("/api/**")
                 .allowedMethods("GET", "POST", "PUT", "DELETE", "OPTIONS")
                 .allowedHeaders("*")
                 .maxAge(3600);
+
+        if (allowedOrigins.length > 0) {
+            mapping.allowedOrigins(allowedOrigins);
+        }
+        if (allowedOriginPatterns.length > 0) {
+            mapping.allowedOriginPatterns(allowedOriginPatterns);
+        }
     }
 }
 
