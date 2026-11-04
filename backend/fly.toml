@@ -8,7 +8,9 @@ primary_region = "ams"
   PORT = "8080"
   SPRING_PROFILES_ACTIVE = "dashboard"
   SERVER_ADDRESS = "0.0.0.0"
-  JAVA_TOOL_OPTIONS = "-Xms96m -Xmx192m -XX:+UseSerialGC"
+  # Container-aware heap sizing. Let the JVM use a percentage of the VM RAM so it
+  # does not get OOM-killed (which caused the 502 / "No Access-Control-Allow-Origin").
+  JAVA_TOOL_OPTIONS = "-XX:+UseContainerSupport -XX:MaxRAMPercentage=65 -XX:+UseSerialGC -XX:MaxMetaspaceSize=128m"
   JOBWATCH_DISCOVERY_MAX_PROBES_PER_RUN = "20"
 
 [http_service]
@@ -19,7 +21,16 @@ primary_region = "ams"
   min_machines_running = 1
   processes = ["app"]
 
+  # Readiness check so the Fly proxy waits for the app instead of returning 502s
+  # (and bad/missing CORS headers) while the JVM is still starting or restarting.
+  [[http_service.checks]]
+    interval = "15s"
+    timeout = "4s"
+    grace_period = "40s"
+    method = "GET"
+    path = "/healthz"
+
 [[vm]]
   cpu_kind = "shared"
   cpus = 1
-  memory_mb = 512
+  memory_mb = 1024

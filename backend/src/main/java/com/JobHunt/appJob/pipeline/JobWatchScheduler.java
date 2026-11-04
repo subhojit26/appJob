@@ -108,14 +108,19 @@ public class JobWatchScheduler {
                     summary.rawFetched(), summary.afterDedupe(), summary.eligible(),
                     summary.matched(), summary.newJobs());
 
-            // 2. Build and send digest for pending jobs (only after persist)
-            boolean sent = notificationService.sendPendingDigest(summary.healthLine());
+            // 2. Only the 6am scheduled run should send digest emails.
+            // Manual reloads refresh the dashboard without spamming the user.
+            if (!"manual".equals(trigger)) {
+                boolean sent = notificationService.sendPendingDigest(summary.healthLine());
 
-            if (!sent) {
-                // Email failed: do NOT ping success — jobs remain pending for next run
-                log.error("Digest send failed — skipping healthcheck ping");
-                healthcheckPinger.pingFail();
-                return new TriggerResult(true, false, summary, "Digest send failed");
+                if (!sent) {
+                    // Email failed: do NOT ping success — jobs remain pending for next run
+                    log.error("Digest send failed — skipping healthcheck ping");
+                    healthcheckPinger.pingFail();
+                    return new TriggerResult(true, false, summary, "Digest send failed");
+                }
+            } else {
+                log.info("Manual reload complete: dashboard refreshed without sending digest email");
             }
 
             // 3. All good — ping healthchecks.io
@@ -133,4 +138,3 @@ public class JobWatchScheduler {
     public record TriggerResult(boolean started, boolean success, RunSummary summary, String error) {
     }
 }
-
