@@ -2,6 +2,8 @@
 
 **Version:** 1.2 (Spring Boot 4.1.1 dependency refresh) | **Owner:** You | **Stack:** Java 21, Spring Boot 4.1.1 (Spring Framework 7, Jackson 3), SQLite | **Target cost:** $0-6/month
 
+
+
 > **v1.2 change summary:** The PRD is now consistently based on Spring Boot 4.1.1. All Bootstrap/Phase 0 dependency references have been updated from stale Spring Boot 3.x guidance to Boot 4.1.1. The dependency strategy uses Boot 4.1.1-managed versions wherever possible; no Spring Boot 3.x starters, APIs, or dependency examples should be introduced. All functional requirements and business logic are unchanged.
 
 > **v1.3 planned additions (not yet implemented):** Two new capabilities are specified in this document but deliberately scheduled for later phases so they do not disrupt the MVP. (1) **Analytics dashboard** — a lightweight local web UI that shows how many jobs were emailed to you over time and lets you track how many you applied to (see §4.7 and Phase 9). (2) **Zero hardcoded companies** — company slugs are no longer hand-maintained in `application.yml`; they are discovered dynamically from your role profiles and persisted in the DB (see §4.1 FR-1a/FR-1b, §7.10, and Phase 6). These sections are additive; the MVP (Phases 0-5) is unchanged. Implement them only when their phase is reached.
