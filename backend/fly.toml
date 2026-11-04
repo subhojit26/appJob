@@ -8,6 +8,8 @@ primary_region = "ams"
   PORT = "8080"
   SPRING_PROFILES_ACTIVE = "dashboard"
   SERVER_ADDRESS = "0.0.0.0"
+  JAVA_TOOL_OPTIONS = "-Xms96m -Xmx192m -XX:+UseSerialGC"
+  JOBWATCH_DISCOVERY_MAX_PROBES_PER_RUN = "20"
 
 [http_service]
   internal_port = 8080
