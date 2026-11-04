@@ -24,6 +24,7 @@ import java.util.concurrent.Callable;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
+import java.util.concurrent.Semaphore;
 import java.util.function.BiFunction;
 
 /**
@@ -40,6 +41,29 @@ public class CompanyDiscoveryService {
 
     private static final Logger log = LoggerFactory.getLogger(CompanyDiscoveryService.class);
     private static final String SEED_RESOURCE = "company-seed.txt";
+
+    /**
+     * Max slugs probed concurrently. Each slug probes 3 ATS endpoints, each buffering a JSON
+     * response; an unbounded fan-out over the seed list spikes heap and OOM-kills the JVM on
+     * small containers (observed as 502s mid-reload). Bounding keeps peak memory flat.
+     * Override via {@code JOBWATCH_FETCH_CONCURRENCY}.
+     */
+    private static final int MAX_CONCURRENT_PROBES = readConcurrencyLimit();
+
+    private static int readConcurrencyLimit() {
+        String raw = System.getenv("JOBWATCH_FETCH_CONCURRENCY");
+        if (raw != null && !raw.isBlank()) {
+            try {
+                int v = Integer.parseInt(raw.trim());
+                if (v > 0) {
+                    return v;
+                }
+            } catch (NumberFormatException ignored) {
+                // fall through to default
+            }
+        }
+        return 6;
+    }
 
     private final CompanyRepository companyRepository;
     private final HttpJobFetcher fetcher;
@@ -85,10 +109,12 @@ public class CompanyDiscoveryService {
 
         Instant now = Instant.now();
         int discovered = 0;
+        // Bound how many slugs probe concurrently to keep peak memory flat on small containers.
+        Semaphore gate = new Semaphore(Math.max(1, MAX_CONCURRENT_PROBES));
         try (ExecutorService pool = Executors.newVirtualThreadPerTaskExecutor()) {
             List<Future<int[]>> futures = new ArrayList<>();
             for (String slug : capped) {
-                futures.add(pool.submit(probeAll(slug, now)));
+                futures.add(pool.submit(probeAll(slug, now, gate)));
             }
             for (Future<int[]> f : futures) {
                 try {
@@ -102,16 +128,21 @@ public class CompanyDiscoveryService {
     }
 
     /** Returns a task that probes one slug across all three ATS; result[0] = boards found. */
-    private Callable<int[]> probeAll(String slug, Instant now) {
+    private Callable<int[]> probeAll(String slug, Instant now, Semaphore gate) {
         return () -> {
-            int found = 0;
-            found += probe(GreenhouseJobSource.SOURCE, slug, now,
-                    (s, f) -> new GreenhouseJobSource(s, f));
-            found += probe(LeverJobSource.SOURCE, slug, now,
-                    (s, f) -> new LeverJobSource(s, s, f));
-            found += probe(AshbyJobSource.SOURCE, slug, now,
-                    (s, f) -> new AshbyJobSource(s, s, f));
-            return new int[]{found};
+            gate.acquire();
+            try {
+                int found = 0;
+                found += probe(GreenhouseJobSource.SOURCE, slug, now,
+                        (s, f) -> new GreenhouseJobSource(s, f));
+                found += probe(LeverJobSource.SOURCE, slug, now,
+                        (s, f) -> new LeverJobSource(s, s, f));
+                found += probe(AshbyJobSource.SOURCE, slug, now,
+                        (s, f) -> new AshbyJobSource(s, s, f));
+                return new int[]{found};
+            } finally {
+                gate.release();
+            }
         };
     }
 

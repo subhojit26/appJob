@@ -103,8 +103,10 @@ public class JobWatchScheduler {
         log.info("=== JobWatch {} run starting ===", trigger);
         try {
             // 1. Fetch → dedupe → extract → filter → match → persist.
-            //    Manual reloads skip company discovery to stay light (avoids OOM/502 on small VMs).
-            RunSummary summary = pipeline.run(!manual);
+            //    Discovery is always allowed: it is self-gated (runs only when the company roster
+            //    is empty) and memory-bounded, and it is REQUIRED for a manual reload to populate
+            //    the dashboard on a fresh/empty database.
+            RunSummary summary = pipeline.run();
 
             log.info("Pipeline summary: rawFetched={} afterDedupe={} eligible={} matched={} new={}",
                     summary.rawFetched(), summary.afterDedupe(), summary.eligible(),
