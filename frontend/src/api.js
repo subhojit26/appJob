@@ -7,7 +7,40 @@ import axios from 'axios';
 const envBase = (import.meta.env.VITE_API_BASE_URL || '').trim();
 const normalizedBase = envBase.replace(/\/$/, '');
 const apiBase = normalizedBase ? `${normalizedBase}/api` : '/api';
-const http = axios.create({ baseURL: apiBase });
+const http = axios.create({ baseURL: apiBase, timeout: 20000 });
+
+// ── Cold-start resilience ─────────────────────────────────────────────────────
+// The backend (Fly) can be cold/booting on first load, returning 502/503/504 or a
+// network error (no CORS headers on the proxy error page). Instead of surfacing a
+// confusing CORS/"failed to load" error, transparently retry a few times with
+// exponential backoff so the first page load self-heals once the app is up.
+const MAX_RETRIES = 4;
+const RETRYABLE_STATUS = new Set([429, 502, 503, 504]);
+const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+
+http.interceptors.response.use(
+  (response) => response,
+  async (error) => {
+    const config = error.config;
+    if (!config) {
+      return Promise.reject(error);
+    }
+    // No response at all (network/CORS-on-error) or a retryable gateway status.
+    const status = error.response?.status;
+    const isRetryable = status == null || RETRYABLE_STATUS.has(status);
+    config.__retryCount = config.__retryCount || 0;
+
+    if (isRetryable && config.__retryCount < MAX_RETRIES) {
+      config.__retryCount += 1;
+      // 0.8s, 1.6s, 3.2s, 6.4s (+ jitter) — covers typical JVM cold-start windows.
+      const backoff = 800 * 2 ** (config.__retryCount - 1);
+      const jitter = Math.random() * 300;
+      await sleep(backoff + jitter);
+      return http(config);
+    }
+    return Promise.reject(error);
+  },
+);
 
 // ── Profiles ────────────────────────────────────────────────────────────────
 export const getProfiles = () => http.get('/profiles').then((r) => r.data);

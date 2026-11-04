@@ -99,10 +99,12 @@ public class JobWatchScheduler {
     }
 
     private TriggerResult executePipeline(String trigger) {
+        boolean manual = "manual".equals(trigger);
         log.info("=== JobWatch {} run starting ===", trigger);
         try {
-            // 1. Fetch → dedupe → extract → filter → match → persist
-            RunSummary summary = pipeline.run();
+            // 1. Fetch → dedupe → extract → filter → match → persist.
+            //    Manual reloads skip company discovery to stay light (avoids OOM/502 on small VMs).
+            RunSummary summary = pipeline.run(!manual);
 
             log.info("Pipeline summary: rawFetched={} afterDedupe={} eligible={} matched={} new={}",
                     summary.rawFetched(), summary.afterDedupe(), summary.eligible(),
@@ -110,7 +112,7 @@ public class JobWatchScheduler {
 
             // 2. Only the 6am scheduled run should send digest emails.
             // Manual reloads refresh the dashboard without spamming the user.
-            if (!"manual".equals(trigger)) {
+            if (!manual) {
                 boolean sent = notificationService.sendPendingDigest(summary.healthLine());
 
                 if (!sent) {

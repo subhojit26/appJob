@@ -135,6 +135,19 @@ public class JobWatchPipeline {
      * @return a {@link RunSummary} describing what happened
      */
     public RunSummary run() {
+        return run(true);
+    }
+
+    /**
+     * Executes one full run and returns a summary.
+     *
+     * @param allowDiscovery when {@code false}, skips company-board discovery probing. Manual
+     *                       dashboard reloads pass {@code false} to keep the run light (less
+     *                       memory/CPU), avoiding OOM-driven 502s on small containers. The 6am
+     *                       scheduled run passes {@code true} to keep the roster fresh.
+     * @return a {@link RunSummary} describing what happened
+     */
+    public RunSummary run(boolean allowDiscovery) {
         Instant runStart = Instant.now();
 
         // Resolve sources for this run: dynamic DB-backed roster (prod) or static list (tests).
@@ -147,8 +160,9 @@ public class JobWatchPipeline {
         RunResult result = orchestrator.run(runSources);
 
         // 1b. Company discovery (Phase 6): bootstrap the roster from seed + harvested Adzuna names.
-        //     Runs only when the roster is empty, so normal runs stay fast.
-        if (discoveryService != null) {
+        //     Runs only when the roster is empty, so normal runs stay fast. Skipped entirely on
+        //     light (manual) runs to minimize memory/CPU footprint.
+        if (allowDiscovery && discoveryService != null) {
             List<String> harvested = result.jobs().stream()
                     .filter(j -> "adzuna".equals(j.source()))
                     .map(Job::company)
