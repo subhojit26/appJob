@@ -33,6 +33,7 @@ public class JobWatchScheduler {
     private final DigestNotificationService notificationService;
     private final HealthcheckPinger healthcheckPinger;
     private final AtomicBoolean running = new AtomicBoolean(false);
+    private volatile TriggerResult lastManualResult = new TriggerResult(false, true, null, null);
 
     public JobWatchScheduler(JobWatchPipeline pipeline,
                              DigestNotificationService notificationService,
@@ -59,6 +60,27 @@ public class JobWatchScheduler {
         return runPipelineInternal("manual");
     }
 
+    /** Fire-and-forget variant used by the dashboard so HTTP requests return fast. */
+    public boolean triggerManualRunAsync() {
+        if (!running.compareAndSet(false, true)) {
+            return false;
+        }
+        Thread worker = new Thread(() -> {
+            try {
+                lastManualResult = executePipeline("manual");
+            } finally {
+                running.set(false);
+            }
+        }, "jobwatch-manual-run");
+        worker.setDaemon(true);
+        worker.start();
+        return true;
+    }
+
+    public TriggerResult lastManualResult() {
+        return lastManualResult;
+    }
+
     public boolean isRunning() {
         return running.get();
     }
@@ -69,6 +91,14 @@ public class JobWatchScheduler {
             return new TriggerResult(false, false, null, null);
         }
 
+        try {
+            return executePipeline(trigger);
+        } finally {
+            running.set(false);
+        }
+    }
+
+    private TriggerResult executePipeline(String trigger) {
         log.info("=== JobWatch {} run starting ===", trigger);
         try {
             // 1. Fetch → dedupe → extract → filter → match → persist
@@ -97,8 +127,6 @@ public class JobWatchScheduler {
             log.error("Pipeline run threw an unexpected exception", e);
             healthcheckPinger.pingFail();
             return new TriggerResult(true, false, null, e.getMessage());
-        } finally {
-            running.set(false);
         }
     }
 

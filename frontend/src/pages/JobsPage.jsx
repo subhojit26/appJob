@@ -10,7 +10,7 @@ import {
   IconRefresh,
 } from '@tabler/icons-react';
 import { useSearchParams } from 'react-router-dom';
-import { getJobs, runJobsReload, setApplied } from '../api.js';
+import { getJobs, getJobsReloadStatus, runJobsReload, setApplied } from '../api.js';
 import { PageHeader, EmptyState, CompanyAvatar } from '../components/ui.jsx';
 
 /** One clickable filter row with a count pill. */
@@ -146,6 +146,8 @@ export default function JobsPage() {
     try {
       const payload = await getJobs(params);
       setData(payload);
+    } catch {
+      setData((prev) => prev ?? { total: 0, jobs: [], filter: {}, profileFacet: [], locationFacet: [], remoteFacet: [] });
     } finally {
       setLoading(false);
     }
@@ -172,18 +174,28 @@ export default function JobsPage() {
     setReloading(true);
     setReloadMessage('');
     try {
-      const result = await runJobsReload();
-      await load();
-      if (result?.success === false) {
-        setReloadMessage(result.error || 'Reload completed with warnings.');
-        return;
+      await runJobsReload();
+      setReloadMessage('Reload started. Fetching fresh jobs now...');
+
+      for (let i = 0; i < 24; i += 1) {
+        await new Promise((resolve) => setTimeout(resolve, 3000));
+        const status = await getJobsReloadStatus();
+        if (!status?.running) {
+          await load();
+          if (status?.success === false) {
+            setReloadMessage(status.error || 'Reload finished with warnings.');
+          } else {
+            setReloadMessage(`Reload complete: ${status?.matched ?? 0} matched, ${status?.total ?? 0} jobs in the last 3 days.`);
+          }
+          return;
+        }
       }
-      const matched = result?.matched ?? 0;
-      const fresh = result?.total ?? 0;
-      setReloadMessage(`Reload complete: ${matched} matched, ${fresh} jobs in the last 3 days.`);
+      setReloadMessage('Reload is still running. Please wait a bit and refresh jobs.');
     } catch (err) {
       if (err?.response?.status === 409) {
         setReloadMessage('A run is already in progress. Wait a minute and refresh again.');
+      } else if (err?.response?.status === 502) {
+        setReloadMessage('Backend is waking up on Fly trial. Retry in a few seconds.');
       } else {
         setReloadMessage('Reload failed. Please try again.');
       }

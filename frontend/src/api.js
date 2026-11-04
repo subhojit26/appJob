@@ -23,6 +23,7 @@ export const toggleActive = (id) =>
 export const getAnalytics = () => http.get('/analytics').then((r) => r.data);
 export const getJobs = (params) => http.get('/jobs', { params }).then((r) => r.data);
 export const runJobsReload = () => http.post('/jobs/reload').then((r) => r.data);
+export const getJobsReloadStatus = () => http.get('/jobs/reload/status').then((r) => r.data);
 export const setApplied = (id, applied) =>
   http.post(`/jobs/${id}/applied`, null, { params: { applied } }).then((r) => r.data);
 

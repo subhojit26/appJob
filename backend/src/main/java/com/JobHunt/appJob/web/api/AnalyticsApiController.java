@@ -1,5 +1,6 @@
 package com.JobHunt.appJob.web.api;
 import com.JobHunt.appJob.pipeline.JobWatchScheduler;
+import com.JobHunt.appJob.pipeline.RunSummary;
 import com.JobHunt.appJob.web.AnalyticsRepository;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.http.HttpStatus;
@@ -62,32 +63,34 @@ public class AnalyticsApiController {
 
     @PostMapping("/jobs/reload")
     public ResponseEntity<Map<String, Object>> reloadJobsNow() {
-        JobWatchScheduler.TriggerResult result = scheduler.runPipelineNow();
-        if (!result.started()) {
+        boolean started = scheduler.triggerManualRunAsync();
+        if (!started) {
             return ResponseEntity.status(HttpStatus.CONFLICT)
                     .body(Map.of("started", false, "running", true, "message", "A pipeline run is already in progress."));
         }
 
+        return ResponseEntity.accepted().body(Map.of(
+                "started", true,
+                "running", true,
+                "message", "Reload started. Fetching fresh jobs now."));
+    }
+
+    @GetMapping("/jobs/reload/status")
+    public Map<String, Object> reloadJobsStatus() {
         AnalyticsRepository.JobsFilter filter = AnalyticsRepository.JobsFilter.of(null, null, null, null, null);
         long total = analytics.filteredCount(filter);
-        if (result.summary() == null) {
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                    .body(Map.of(
-                            "started", true,
-                            "success", false,
-                            "total", total,
-                            "error", result.error() == null ? "Pipeline run failed" : result.error()));
-        }
+        JobWatchScheduler.TriggerResult last = scheduler.lastManualResult();
+        RunSummary summary = last.summary();
 
-        return ResponseEntity.ok(Map.of(
-                "started", true,
-                "success", result.success(),
+        return Map.of(
+                "running", scheduler.isRunning(),
+                "success", last.success(),
                 "total", total,
-                "rawFetched", result.summary().rawFetched(),
-                "afterDedupe", result.summary().afterDedupe(),
-                "eligible", result.summary().eligible(),
-                "matched", result.summary().matched(),
-                "newJobs", result.summary().newJobs(),
-                "error", result.error() == null ? "" : result.error()));
+                "rawFetched", summary == null ? 0 : summary.rawFetched(),
+                "afterDedupe", summary == null ? 0 : summary.afterDedupe(),
+                "eligible", summary == null ? 0 : summary.eligible(),
+                "matched", summary == null ? 0 : summary.matched(),
+                "newJobs", summary == null ? 0 : summary.newJobs(),
+                "error", last.error() == null ? "" : last.error());
     }
 }
