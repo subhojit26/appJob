@@ -9,6 +9,7 @@ import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
+import java.util.concurrent.Semaphore;
 
 /**
  * Runs a set of {@link JobSource}s concurrently and combines their results.
@@ -35,6 +36,30 @@ import java.util.concurrent.Future;
  */
 public class RunOrchestrator {
 
+    /**
+     * Maximum number of sources fetched concurrently. Virtual threads are cheap, but each
+     * in-flight fetch buffers its HTTP/JSON response in memory. On small (≈1GB) containers an
+     * unbounded fan-out over a large discovered roster spikes heap usage and gets the JVM
+     * OOM-killed (observed as 502s on dashboard reload). Bounding concurrency keeps peak memory
+     * flat while still overlapping network I/O. Override via {@code JOBWATCH_FETCH_CONCURRENCY}.
+     */
+    private static final int MAX_CONCURRENT_SOURCES = readConcurrencyLimit();
+
+    private static int readConcurrencyLimit() {
+        String raw = System.getenv("JOBWATCH_FETCH_CONCURRENCY");
+        if (raw != null && !raw.isBlank()) {
+            try {
+                int v = Integer.parseInt(raw.trim());
+                if (v > 0) {
+                    return v;
+                }
+            } catch (NumberFormatException ignored) {
+                // fall through to default
+            }
+        }
+        return 6;
+    }
+
     /** Internal per-source outcome pairing stats with the jobs it produced. */
     private record Outcome(SourceStats stats, List<Job> jobs) {
     }
@@ -50,11 +75,14 @@ public class RunOrchestrator {
             return new RunResult(List.of(), List.of());
         }
 
+        // Bound how many sources fetch at once to keep peak memory flat on small containers.
+        Semaphore gate = new Semaphore(Math.max(1, MAX_CONCURRENT_SOURCES));
+
         List<Outcome> outcomes;
         try (ExecutorService executor = Executors.newVirtualThreadPerTaskExecutor()) {
             List<Future<Outcome>> futures = new ArrayList<>(sources.size());
             for (JobSource source : sources) {
-                futures.add(executor.submit(() -> runOne(source)));
+                futures.add(executor.submit(() -> runOne(source, gate)));
             }
             outcomes = new ArrayList<>(futures.size());
             for (Future<Outcome> future : futures) {
@@ -72,14 +100,22 @@ public class RunOrchestrator {
     }
 
     /** Executes a single source, converting any failure into a failed {@link SourceStats}. */
-    private Outcome runOne(JobSource source) {
+    private Outcome runOne(JobSource source, Semaphore gate) {
         String name = safeName(source);
+        try {
+            gate.acquire();
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            return new Outcome(SourceStats.failure(name, e), List.of());
+        }
         try {
             List<Job> jobs = source.fetchJobs();
             List<Job> safe = (jobs == null) ? List.of() : jobs;
             return new Outcome(SourceStats.success(name, safe.size()), safe);
         } catch (Exception e) {
             return new Outcome(SourceStats.failure(name, e), List.of());
+        } finally {
+            gate.release();
         }
     }
 

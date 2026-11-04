@@ -171,7 +171,10 @@ public class AnalyticsRepository {
      * dimension (used when counting that dimension's own facet). Params are added to {@code params}.
      */
     private String buildWhere(JobsFilter f, String skip, java.util.Map<String, Object> params) {
-        StringBuilder sb = new StringBuilder("WHERE notified_at IS NOT NULL");
+        // Dashboard shows MATCHED jobs (profile assigned), regardless of whether they were
+        // emailed yet. Emails are sent only by the 6am scheduled run, but a manual reload must
+        // still surface matching companies/jobs for the active profile immediately.
+        StringBuilder sb = new StringBuilder("WHERE profile IS NOT NULL");
         // Freshness window: hide stale postings (older than FRESH_DAYS) from the dashboard too.
         sb.append(" AND datetime(COALESCE(posted_at, fetched_at)) >= datetime(:freshCutoff)");
         params.put("freshCutoff",
