@@ -8,7 +8,7 @@ import org.springframework.web.bind.annotation.GetMapping;
  * dashboard run profile.
  */
 @Controller
-@ConditionalOnProperty(name = "jobwatch.dashboard.enabled", havingValue = "true")
+@ConditionalOnProperty(name = "jobwatch.dashboard.serve-spa", havingValue = "true")
 public class SpaController {
     @GetMapping({
             "/",

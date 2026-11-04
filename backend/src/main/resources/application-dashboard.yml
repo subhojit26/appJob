@@ -3,6 +3,9 @@
 spring:
   main:
     web-application-type: servlet
+  web:
+    resources:
+      add-mappings: false
   thymeleaf:
     # Dashboard templates live under templates/dashboard/; email templates stay at the root.
     cache: false
@@ -14,6 +17,7 @@ server:
 jobwatch:
   dashboard:
     enabled: true
+    serve-spa: ${JOBWATCH_SERVE_SPA:false}
   cors:
     allowed-origins: ${JOBWATCH_CORS_ALLOWED_ORIGINS:https://app-job-frontend-nine.vercel.app,http://localhost:5173}
     allowed-origin-patterns: ${JOBWATCH_CORS_ALLOWED_ORIGIN_PATTERNS:https://*.vercel.app,http://localhost:*}
