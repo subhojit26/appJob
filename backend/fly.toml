@@ -8,10 +8,21 @@ primary_region = "ams"
   PORT = "8080"
   SPRING_PROFILES_ACTIVE = "dashboard"
   SERVER_ADDRESS = "0.0.0.0"
+  # Persist the SQLite DB on a mounted volume so fetched jobs survive deploys/restarts.
+  # Without this, Fly's ephemeral filesystem wipes jobwatch.db on every restart (DB → 0 rows),
+  # which is why the dashboard showed no companies after each deploy/OOM/auto-stop.
+  JOBWATCH_DB = "/data/jobwatch.db"
   # Container-aware heap sizing. Let the JVM use a percentage of the VM RAM so it
   # does not get OOM-killed (which caused the 502 / "No Access-Control-Allow-Origin").
   JAVA_TOOL_OPTIONS = "-XX:+UseContainerSupport -XX:MaxRAMPercentage=65 -XX:+UseSerialGC -XX:MaxMetaspaceSize=128m"
   JOBWATCH_DISCOVERY_MAX_PROBES_PER_RUN = "20"
+
+# Persistent storage for the SQLite database (survives restarts & deploys).
+# Create the volume once before deploying:
+#   fly volumes create jobwatch_data --size 1 --region ams
+[mounts]
+  source = "jobwatch_data"
+  destination = "/data"
 
 [http_service]
   internal_port = 8080

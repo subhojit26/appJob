@@ -18,11 +18,33 @@ const MAX_RETRIES = 4;
 const RETRYABLE_STATUS = new Set([429, 502, 503, 504]);
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
+// Lightweight console logging to help debug prod (enable/disable via VITE_DEBUG_API).
+const DEBUG = String(import.meta.env.VITE_DEBUG_API ?? 'true') !== 'false';
+const log = (...args) => { if (DEBUG) console.log('[api]', ...args); };
+
+http.interceptors.request.use((config) => {
+  config.__start = Date.now();
+  log('→', (config.method || 'get').toUpperCase(), config.baseURL + config.url,
+    config.params ? { params: config.params } : '');
+  return config;
+});
+
 http.interceptors.response.use(
-  (response) => response,
+  (response) => {
+    const ms = response.config.__start ? Date.now() - response.config.__start : '?';
+    const d = response.data;
+    const summary = d && typeof d === 'object'
+      ? { total: d.total, jobs: Array.isArray(d.jobs) ? d.jobs.length : undefined,
+          profiles: Array.isArray(d.profiles) ? d.profiles.length : undefined,
+          profileFacet: Array.isArray(d.profileFacet) ? d.profileFacet.length : undefined }
+      : d;
+    log('←', response.status, response.config.url, `${ms}ms`, summary);
+    return response;
+  },
   async (error) => {
     const config = error.config;
     if (!config) {
+      log('✗ no-config error', error.message);
       return Promise.reject(error);
     }
     // No response at all (network/CORS-on-error) or a retryable gateway status.
@@ -35,9 +57,12 @@ http.interceptors.response.use(
       // 0.8s, 1.6s, 3.2s, 6.4s (+ jitter) — covers typical JVM cold-start windows.
       const backoff = 800 * 2 ** (config.__retryCount - 1);
       const jitter = Math.random() * 300;
+      log(`⟳ retry ${config.__retryCount}/${MAX_RETRIES} after ${Math.round(backoff)}ms`,
+        config.url, 'status=', status ?? 'network/CORS');
       await sleep(backoff + jitter);
       return http(config);
     }
+    log('✗ giving up', config.url, 'status=', status ?? 'network/CORS', error.message);
     return Promise.reject(error);
   },
 );

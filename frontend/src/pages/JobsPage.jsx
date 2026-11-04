@@ -145,8 +145,22 @@ export default function JobsPage() {
     setLoading(true);
     try {
       const payload = await getJobs(params);
+      console.log('[JobsPage] loaded jobs:', {
+        total: payload?.total,
+        jobsReturned: payload?.jobs?.length ?? 0,
+        profileFacet: payload?.profileFacet,
+        locationFacet: payload?.locationFacet,
+        filter: payload?.filter,
+      });
+      if ((payload?.jobs?.length ?? 0) === 0) {
+        console.warn('[JobsPage] No jobs returned. Likely causes: no active profile selected, '
+          + 'no matched jobs persisted yet (run Reload), or all matches older than the 3-day '
+          + 'freshness window.');
+      }
       setData(payload);
-    } catch {
+    } catch (err) {
+      console.error('[JobsPage] failed to load jobs:', err?.response?.status ?? 'network/CORS',
+        err?.message, err);
       setData((prev) => prev ?? { total: 0, jobs: [], filter: {}, profileFacet: [], locationFacet: [], remoteFacet: [] });
     } finally {
       setLoading(false);
