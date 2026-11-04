@@ -1,9 +1,9 @@
-# fly.toml app configuration file generated for appjob-z54hfa on 2026-11-01T06:02:18Z
+# fly.toml app configuration file generated for appjob on 2026-11-04T04:32:18Z
 #
 # See https://fly.io/docs/reference/configuration/ for information about how to use this file.
 #
 
-app = 'appjob-z54hfa'
+app = 'appjob'
 primary_region = 'ams'
 
 [build]
