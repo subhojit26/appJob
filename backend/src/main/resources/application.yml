@@ -67,7 +67,7 @@ jobwatch:
 
   # ── scheduler ────────────────────────────────────────────
   schedule:
-    cron: "${JOBWATCH_CRON:0 */30 * * * *}"
+    cron: "${JOBWATCH_CRON:0 0 6 * * *}"
 
   # ── digest ────────────────────────────────────────────────
   digest:

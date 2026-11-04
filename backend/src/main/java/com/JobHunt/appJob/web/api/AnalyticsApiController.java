@@ -1,6 +1,9 @@
 package com.JobHunt.appJob.web.api;
+import com.JobHunt.appJob.pipeline.JobWatchScheduler;
 import com.JobHunt.appJob.web.AnalyticsRepository;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import java.time.Duration;
 import java.time.Instant;
@@ -11,8 +14,10 @@ import java.util.Map;
 @ConditionalOnProperty(name = "jobwatch.dashboard.enabled", havingValue = "true")
 public class AnalyticsApiController {
     private final AnalyticsRepository analytics;
-    public AnalyticsApiController(AnalyticsRepository analytics) {
+    private final JobWatchScheduler scheduler;
+    public AnalyticsApiController(AnalyticsRepository analytics, JobWatchScheduler scheduler) {
         this.analytics = analytics;
+        this.scheduler = scheduler;
     }
     @GetMapping("/analytics")
     public Map<String, Object> analytics() {
@@ -53,5 +58,36 @@ public class AnalyticsApiController {
     public Map<String, Object> toggleApplied(@PathVariable long id, @RequestParam boolean applied) {
         analytics.setApplied(id, applied);
         return Map.of("id", id, "applied", applied);
+    }
+
+    @PostMapping("/jobs/reload")
+    public ResponseEntity<Map<String, Object>> reloadJobsNow() {
+        JobWatchScheduler.TriggerResult result = scheduler.runPipelineNow();
+        if (!result.started()) {
+            return ResponseEntity.status(HttpStatus.CONFLICT)
+                    .body(Map.of("started", false, "running", true, "message", "A pipeline run is already in progress."));
+        }
+
+        AnalyticsRepository.JobsFilter filter = AnalyticsRepository.JobsFilter.of(null, null, null, null, null);
+        long total = analytics.filteredCount(filter);
+        if (result.summary() == null) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(Map.of(
+                            "started", true,
+                            "success", false,
+                            "total", total,
+                            "error", result.error() == null ? "Pipeline run failed" : result.error()));
+        }
+
+        return ResponseEntity.ok(Map.of(
+                "started", true,
+                "success", result.success(),
+                "total", total,
+                "rawFetched", result.summary().rawFetched(),
+                "afterDedupe", result.summary().afterDedupe(),
+                "eligible", result.summary().eligible(),
+                "matched", result.summary().matched(),
+                "newJobs", result.summary().newJobs(),
+                "error", result.error() == null ? "" : result.error()));
     }
 }

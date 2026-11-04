@@ -7,6 +7,8 @@ import org.slf4j.LoggerFactory;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 
+import java.util.concurrent.atomic.AtomicBoolean;
+
 /**
  * Scheduled entry-point for JobWatch.
  *
@@ -30,6 +32,7 @@ public class JobWatchScheduler {
     private final JobWatchPipeline pipeline;
     private final DigestNotificationService notificationService;
     private final HealthcheckPinger healthcheckPinger;
+    private final AtomicBoolean running = new AtomicBoolean(false);
 
     public JobWatchScheduler(JobWatchPipeline pipeline,
                              DigestNotificationService notificationService,
@@ -46,9 +49,27 @@ public class JobWatchScheduler {
      * Source-level failures (one source down) are tolerated — they appear in the health
      * line included in the digest.</p>
      */
-    @Scheduled(cron = "${jobwatch.schedule.cron:0 */30 * * * *}")
+    @Scheduled(cron = "${jobwatch.schedule.cron:0 0 6 * * *}")
     public void runPipeline() {
-        log.info("=== JobWatch scheduled run starting ===");
+        runPipelineInternal("scheduled");
+    }
+
+    /** Triggered by the dashboard UI to run fetch/match immediately. */
+    public TriggerResult runPipelineNow() {
+        return runPipelineInternal("manual");
+    }
+
+    public boolean isRunning() {
+        return running.get();
+    }
+
+    private TriggerResult runPipelineInternal(String trigger) {
+        if (!running.compareAndSet(false, true)) {
+            log.info("Skipping {} pipeline run because another run is already in progress", trigger);
+            return new TriggerResult(false, false, null, null);
+        }
+
+        log.info("=== JobWatch {} run starting ===", trigger);
         try {
             // 1. Fetch → dedupe → extract → filter → match → persist
             RunSummary summary = pipeline.run();
@@ -64,17 +85,24 @@ public class JobWatchScheduler {
                 // Email failed: do NOT ping success — jobs remain pending for next run
                 log.error("Digest send failed — skipping healthcheck ping");
                 healthcheckPinger.pingFail();
-                return;
+                return new TriggerResult(true, false, summary, "Digest send failed");
             }
 
             // 3. All good — ping healthchecks.io
             healthcheckPinger.pingSuccess();
-            log.info("=== JobWatch scheduled run complete ===");
+            log.info("=== JobWatch {} run complete ===", trigger);
+            return new TriggerResult(true, true, summary, null);
 
         } catch (Exception e) {
             log.error("Pipeline run threw an unexpected exception", e);
             healthcheckPinger.pingFail();
+            return new TriggerResult(true, false, null, e.getMessage());
+        } finally {
+            running.set(false);
         }
+    }
+
+    public record TriggerResult(boolean started, boolean success, RunSummary summary, String error) {
     }
 }
 

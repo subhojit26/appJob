@@ -228,7 +228,7 @@ public class AppProperties {
     // ── schedule ─────────────────────────────────────────────────────────────
 
     public static class ScheduleConfig {
-        private String cron = "0 */30 * * * *";
+        private String cron = "0 0 6 * * *";
         public String getCron()       { return cron; }
         public void setCron(String v) { this.cron = v; }
     }

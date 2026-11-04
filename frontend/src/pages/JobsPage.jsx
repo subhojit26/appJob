@@ -7,9 +7,10 @@ import { useDisclosure } from '@mantine/hooks';
 import {
   IconMapPin, IconWorld, IconCircleCheck, IconExternalLink, IconX, IconBriefcase2,
   IconCalendar, IconFilterOff, IconCircleDashed, IconTargetArrow, IconAdjustmentsHorizontal,
+  IconRefresh,
 } from '@tabler/icons-react';
 import { useSearchParams } from 'react-router-dom';
-import { getJobs, setApplied } from '../api.js';
+import { getJobs, runJobsReload, setApplied } from '../api.js';
 import { PageHeader, EmptyState, CompanyAvatar } from '../components/ui.jsx';
 
 /** One clickable filter row with a count pill. */
@@ -129,6 +130,8 @@ export default function JobsPage() {
   const [sp, setSp] = useSearchParams();
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [reloading, setReloading] = useState(false);
+  const [reloadMessage, setReloadMessage] = useState('');
   const [filtersOpen, { toggle: toggleFilters }] = useDisclosure(false);
 
   const params = {
@@ -138,9 +141,14 @@ export default function JobsPage() {
     applied: sp.get('applied') || undefined,
   };
 
-  const load = useCallback(() => {
+  const load = useCallback(async () => {
     setLoading(true);
-    getJobs(params).then(setData).finally(() => setLoading(false));
+    try {
+      const payload = await getJobs(params);
+      setData(payload);
+    } finally {
+      setLoading(false);
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [sp]);
 
@@ -157,7 +165,31 @@ export default function JobsPage() {
 
   const onApplied = async (job) => {
     await setApplied(job.id, !job.applied);
-    load();
+    await load();
+  };
+
+  const onReloadNow = async () => {
+    setReloading(true);
+    setReloadMessage('');
+    try {
+      const result = await runJobsReload();
+      await load();
+      if (result?.success === false) {
+        setReloadMessage(result.error || 'Reload completed with warnings.');
+        return;
+      }
+      const matched = result?.matched ?? 0;
+      const fresh = result?.total ?? 0;
+      setReloadMessage(`Reload complete: ${matched} matched, ${fresh} jobs in the last 3 days.`);
+    } catch (err) {
+      if (err?.response?.status === 409) {
+        setReloadMessage('A run is already in progress. Wait a minute and refresh again.');
+      } else {
+        setReloadMessage('Reload failed. Please try again.');
+      }
+    } finally {
+      setReloading(false);
+    }
   };
 
   const f = data?.filter ?? {};
@@ -233,8 +265,22 @@ export default function JobsPage() {
       <PageHeader
         icon={IconBriefcase2}
         title="Jobs"
-        subtitle="Fresh openings matched to your active profiles. Narrow them down with the filters and track what you’ve applied to."
+        subtitle="Fresh openings from the last 3 days matched to your active profiles. Narrow them down with filters or run a manual refresh."
+        actions={(
+          <Button
+            variant="light"
+            leftSection={<IconRefresh size={16} />}
+            loading={reloading}
+            onClick={onReloadNow}
+          >
+            Reload now
+          </Button>
+        )}
       />
+
+      {reloadMessage && (
+        <Text size="sm" c="dimmed" mb="md">{reloadMessage}</Text>
+      )}
 
       <Grid gutter="lg">
         <Grid.Col span={{ base: 12, md: 3 }}>
